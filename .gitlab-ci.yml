@@ -1,0 +1,38 @@
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - pwd
+    - echo ${CI_COMMIT_REF_NAME}
+    - echo ${CI_COMMIT_SHA}
+    - \cp -rf ./* ~/next-page/
+    - cd ~/next-page/
+    - echo "开始运行..."
+    - echo "安装依赖"
+    - yarn
+    - echo "项目构建"
+    - yarn build
+    - echo "删除旧镜像"
+    - |
+      docker rm -f `docker ps -a | grep next: | awk '{printf $1}'` || true
+    - myAppDockerName="next:"${CI_COMMIT_SHA}
+    - echo "新镜像标签"
+    - echo ${myAppDockerName}
+    - echo "构建容器"
+    - docker build -t ${myAppDockerName} .
+    - |
+      if [[ $? -eq 0 ]]; then
+          echo "运行容器"
+          docker run -d -p 4444:4444 ${myAppDockerName}
+          echo "完成!"
+      else
+          echo "容器构建失败"
+      fi
+  only:
+    - master
+  tags:
+    - tag
+
+
